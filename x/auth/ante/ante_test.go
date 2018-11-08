@@ -19,30 +19,6 @@ import (
 
 var emptyCoins = sdk.Coins{}
 
-func newTestMsg(addrs ...sdk.AccAddress) *sdk.TestMsg {
-	return sdk.NewTestMsg(addrs...)
-}
-
-func newStdFee() auth.StdFee {
-	return auth.NewStdFee(5000,
-		sdk.NewInt64Coin("atom", 150),
-	)
-}
-
-// coins to more than cover the fee
-func newCoins() sdk.Coins {
-	return sdk.Coins{
-		sdk.NewInt64Coin("atom", 10000000),
-	}
-}
-
-// generate a priv key and return it with its address
-func privAndAddr() (crypto.PrivKey, sdk.AccAddress) {
-	priv := ed25519.GenPrivKey()
-	addr := sdk.AccAddress(priv.PubKey().Address())
-	return priv, addr
-}
-
 // run the tx through the anteHandler and ensure its valid
 func checkValidTx(t *testing.T, anteHandler sdk.AnteHandler, ctx sdk.Context, tx sdk.Tx, simulate bool) {
 	_, result, abort := anteHandler(ctx, tx, simulate)

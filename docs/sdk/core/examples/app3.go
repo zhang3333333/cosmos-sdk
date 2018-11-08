@@ -10,6 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
+	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/bank"
 )
 
@@ -34,7 +35,7 @@ func NewApp3(logger log.Logger, db dbm.DB) *bapp.BaseApp {
 	bankKeeper := bank.NewBaseKeeper(accountKeeper)
 	feeKeeper := auth.NewFeeCollectionKeeper(cdc, keyFees)
 
-	app.SetAnteHandler(auth.NewAnteHandler(accountKeeper, feeKeeper))
+	app.SetAnteHandler(ante.NewAnteHandler(accountKeeper, bankKeeper, feeKeeper))
 
 	// Register message routes.
 	// Note the handler gets access to

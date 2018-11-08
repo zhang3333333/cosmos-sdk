@@ -14,6 +14,10 @@ var (
 	addr = sdk.AccAddress(priv.PubKey().Address())
 )
 
+func newStdFee() StdFee {
+	return NewStdFee(5000, sdk.NewInt64Coin("atom", 150))
+}
+
 func TestStdTx(t *testing.T) {
 	msgs := []sdk.Msg{sdk.NewTestMsg(addr)}
 	fee := newStdFee()
