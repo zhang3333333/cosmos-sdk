@@ -3,13 +3,12 @@ package app
 import (
 	"encoding/json"
 
-	abci "github.com/tendermint/abci/types"
-	cmn "github.com/tendermint/tmlibs/common"
-	dbm "github.com/tendermint/tmlibs/db"
-	"github.com/tendermint/tmlibs/log"
+	abci "github.com/tendermint/tendermint/abci/types"
+	cmn "github.com/tendermint/tendermint/libs/common"
+	dbm "github.com/tendermint/tendermint/libs/db"
+	"github.com/tendermint/tendermint/libs/log"
 
 	bam "github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/examples/democoin/x/simplestake"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/wire"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -18,7 +17,8 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/examples/simpleGov/types"
 	simpleGov "github.com/cosmos/cosmos-sdk/examples/simpleGov/x/simple_governance"
-	"github.com/cosmos/cosmos-sdk/x/stake"
+
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 const (
@@ -47,14 +47,14 @@ type SimpleGovApp struct {
 }
 
 // NewSimpleGovApp creates a new SimpleGovApp instance
-func NewSimpleGovApp(logger log.Logger, db dbm.DB) *SimpleGovApp {
+func NewSimpleGovApp(logger log.Logger, db dbm.DB, baseAppOptions ...func(*bam.BaseApp)) *SimpleGovApp {
 
 	// Create app-level codec for txs and accounts.
 	var cdc = MakeCodec()
 
 	// Create your application object.
 	var app = &SimpleGovApp{
-		BaseApp:              bam.NewBaseApp(appName, cdc, logger, db),
+		BaseApp:              bam.NewBaseApp(appName, logger, db, auth.DefaultTxDecoder(cdc), baseAppOptions...),
 		cdc:                  cdc,
 		capKeyMainStore:      sdk.NewKVStoreKey("main"),
 		capKeyAccountStore:   sdk.NewKVStoreKey("acc"),
@@ -66,17 +66,22 @@ func NewSimpleGovApp(logger log.Logger, db dbm.DB) *SimpleGovApp {
 	app.accountMapper = auth.NewAccountMapper(
 		cdc,
 		app.capKeyAccountStore, // target store
-		&types.AppAccount{},    // prototype
+		auth.ProtoBaseAccount,  // prototype
 	)
 
 	// Add handlers.
 	app.coinKeeper = bank.NewKeeper(app.accountMapper)
-	app.stakeKeeper = stake.NewKeeper(app.capKeyStakingStore, app.coinKeeper, app.RegisterCodespace(stake.DefaultCodespace))
-	app.simpleGovKeeper = simpleGov.NewKeeper(app.capKeySimpleGovStore, app.coinKeeper, app.stakeKeeper, app.RegisterCodespace(simpleGov.DefaultCodespace))
+	app.stakeKeeper = stake.NewKeeper(cdc, app.capKeyStakingStore, app.coinKeeper, app.RegisterCodespace(stake.DefaultCodespace))
+	app.simpleGovKeeper = simpleGov.NewKeeper(cdc, app.capKeySimpleGovStore, app.coinKeeper, app.stakeKeeper, app.RegisterCodespace(simpleGov.DefaultCodespace))
 	app.Router().
 		AddRoute("bank", bank.NewHandler(app.coinKeeper)).
 		AddRoute("stake", stake.NewHandler(app.stakeKeeper)).
 		AddRoute("simpleGov", simpleGov.NewHandler(app.simpleGovKeeper))
+
+	// perform initialization logic
+	app.SetInitChainer(app.initChainer)
+	app.SetBeginBlocker(app.BeginBlocker)
+	app.SetEndBlocker(app.EndBlocker)
 
 	// Initialize BaseApp.
 	app.MountStoresIAVL(app.capKeyMainStore, app.capKeyAccountStore, app.capKeySimpleGovStore, app.capKeyStakingStore)
@@ -94,7 +99,6 @@ func MakeCodec() *wire.Codec {
 	wire.RegisterCrypto(cdc) // Register crypto.
 	sdk.RegisterWire(cdc)    // Register Msgs
 	bank.RegisterWire(cdc)
-	simplestake.RegisterWire(cdc)
 	simpleGov.RegisterWire(cdc)
 
 	// Register AppAccount
@@ -103,8 +107,49 @@ func MakeCodec() *wire.Codec {
 	return cdc
 }
 
+// BeginBlocker reflects logic to run before any TXs application are processed
+// by the application.
+func (app *SimpleGovApp) BeginBlocker(_ sdk.Context, _ abci.RequestBeginBlock) abci.ResponseBeginBlock {
+	return abci.ResponseBeginBlock{}
+}
+
+// EndBlocker reflects logic to run after all TXs are processed by the
+// application.
+func (app *SimpleGovApp) EndBlocker(_ sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+	return abci.ResponseEndBlock{}
+}
+
+// initChainer implements the custom application logic that the BaseApp will
+// invoke upon initialization. In this case, it will take the application's
+// state provided by 'req' and attempt to deserialize said state. The state
+// should contain all the genesis accounts. These accounts will be added to the
+// application's account mapper.
+func (app *SimpleGovApp) initChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+	stateJSON := req.AppStateBytes
+
+	genesisState := new(types.GenesisState)
+	err := app.cdc.UnmarshalJSON(stateJSON, genesisState)
+	if err != nil {
+		// TODO: https://github.com/cosmos/cosmos-sdk/issues/468
+		panic(err)
+	}
+
+	for _, gacc := range genesisState.Accounts {
+		acc, err := gacc.ToAppAccount()
+		if err != nil {
+			// TODO: https://github.com/cosmos/cosmos-sdk/issues/468
+			panic(err)
+		}
+
+		acc.AccountNumber = app.accountMapper.GetNextAccountNumber(ctx)
+		app.accountMapper.SetAccount(ctx, acc)
+	}
+
+	return abci.ResponseInitChain{}
+}
+
 // ExportAppStateJSON handles the custom logic for state export
-func (app *SimpleGovApp) ExportAppStateJSON() (appState json.RawMessage, err error) {
+func (app *SimpleGovApp) ExportAppStateJSON() (appState json.RawMessage, validators []tmtypes.GenesisValidator, err error) {
 	ctx := app.NewContext(true, abci.Header{})
 
 	// iterate to get the accounts
@@ -122,5 +167,10 @@ func (app *SimpleGovApp) ExportAppStateJSON() (appState json.RawMessage, err err
 	genState := types.GenesisState{
 		Accounts: accounts,
 	}
-	return wire.MarshalJSONIndent(app.cdc, genState)
+	appState, err = wire.MarshalJSONIndent(app.cdc, genState)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return appState, validators, err
 }

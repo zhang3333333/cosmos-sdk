@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tendermint/tmlibs/cli"
+	"github.com/tendermint/tendermint/libs/cli"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/keys"
@@ -13,14 +13,14 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/rpc"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 
+	"github.com/cosmos/cosmos-sdk/examples/simpleGov/app"
+	"github.com/cosmos/cosmos-sdk/examples/simpleGov/types"
+	simplegovcmd "github.com/cosmos/cosmos-sdk/examples/simpleGov/x/simple_governance/client/cli"
 	"github.com/cosmos/cosmos-sdk/version"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 	bankcmd "github.com/cosmos/cosmos-sdk/x/bank/client/cli"
 	ibccmd "github.com/cosmos/cosmos-sdk/x/ibc/client/cli"
 	stakecmd "github.com/cosmos/cosmos-sdk/x/stake/client/cli"
-	simplegovcmd "github.com/cosmos/cosmos-sdk/examples/simpleGov/x/simple_governance/client/cli"
-
-	"github.com/cosmos/cosmos-sdk/examples/democoin/app"
 )
 
 // rootCmd is the entry point for this binary
@@ -53,7 +53,7 @@ func main() {
 	// add query/post commands (custom to binary)
 	rootCmd.AddCommand(
 		client.GetCommands(
-			authcmd.GetAccountCmd("acc", cdc, authcmd.GetAccountDecoder(cdc)),
+			authcmd.GetAccountCmd("acc", cdc, types.GetAccountDecoder(cdc)),
 			stakecmd.GetCmdQueryValidator("stake", cdc),
 			stakecmd.GetCmdQueryValidators("stake", cdc),
 			stakecmd.GetCmdQueryDelegation("stake", cdc),
@@ -64,10 +64,10 @@ func main() {
 			bankcmd.SendTxCmd(cdc),
 			ibccmd.IBCTransferCmd(cdc),
 			ibccmd.IBCRelayCmd(cdc),
-			stakecmd.GetCmdDeclareCandidacy(cdc),
-			stakecmd.GetCmdEditCandidacy(cdc),
+			stakecmd.GetCmdCreateValidator(cdc),
+			stakecmd.GetCmdEditValidator(cdc),
 			stakecmd.GetCmdDelegate(cdc),
-			stakecmd.GetCmdUnbond(cdc),
+			stakecmd.GetCmdUnbond("stake", cdc),
 		)...)
 	// and now simplegov specific commands
 	rootCmd.AddCommand(
