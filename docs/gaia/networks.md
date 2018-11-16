@@ -3,6 +3,8 @@
 There are a variety of ways to setup either local or remote networks with automation, detailed below.
 All the required files are found in the [networks directory](https://github.com/cosmos/cosmos-sdk/tree/develop/networks) and additionally the `local` or `remote` sub-directories.
 
+**Note:** These commands work well on Linux or MacOS but have [issues with Windows](https://github.com/cosmos/cosmos-sdk/issues/2759).
+
 ## Local Testnet
 
 From the [networks/local directory](https://github.com/cosmos/cosmos-sdk/tree/develop/networks/local):
