@@ -1,6 +1,6 @@
-# Light-client Daemon Specification
+# LCD Specification
 
-This specification describes how to implement the LCD. LCD supports modular APIs. Currently, only
+This specification describes how to implement the Light-Client Daemon. The LCD supports modular APIs. Currently, only
 ICS0 (TendermintAPI), ICS1 (Key API) and ICS20 (Token API) are supported. Later, if necessary, more
 APIs can be included.
 

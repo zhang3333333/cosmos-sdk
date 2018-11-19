@@ -14,6 +14,8 @@
 The Cosmos-SDK is a framework for building blockchain applications in Golang.
 It is being used to build `Gaia`, the first implementation of the Cosmos Hub.
 
+>**NOTE**: For now, the `gaia` application lives in this repository. This means you will find `gaia` code bits in multiple places. It is planned for the `gaia` code, along with its documentation, to be moved to a separate repository in the future.
+
 **WARNING**: The SDK has mostly stabilized, but we are still making some
 breaking changes.
 

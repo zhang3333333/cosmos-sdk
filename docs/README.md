@@ -2,7 +2,7 @@
 
 ![cosmonaut reading the cosmos docs in space](./cosmos-docs.jpg)
 
-**Note:** If you've been here before, Checkout the [quick link](#quick-links), below.
+> **Note:** If you've been here before, Checkout the [quick link](#quick-links), below.
 
 ## Learn the SDK
 
