@@ -8,6 +8,7 @@ instances:
     reverse_content_match: true
 
   - name: gaiacli
-    url: http://localhost:1317/node_version
+    url: https://localhost:1317/node_version
     timeout: 1
+    disable_ssl_validation: true
 
