@@ -9,41 +9,56 @@
 - name: Create gaiad user
   user: name=gaiad home=/home/gaiad shell=/bin/bash
 
-- name: Copy binary
+- name: Copy gaiad binary
   copy:
     src: "{{BINARY}}"
-    dest: /usr/bin
+    dest: /usr/bin/gaiad
+    mode: 0755
+
+- name: Copy gaiacli binary
+  copy:
+    src: "{{GAIACLI_BINARY}}"
+    dest: /usr/bin/gaiacli
     mode: 0755
 
 - name: Copy service file
   copy: src=gaiad.service dest=/etc/systemd/system/gaiad.service mode=0755
   notify: reload systemd
 
-- name: Get node ID
-  command: "cat /etc/nodeid"
-  changed_when: false
-  register: nodeid
+#- name: Get node ID
+#  command: "cat /etc/nodeid"
+#  changed_when: false
+#  register: nodeid
+
+- name: Create empty genesis
+  command: "/usr/bin/gaiad init --chain-id {{TESTNET_NAME}} --moniker {{inventory_hostname}}"
+  become: yes
+  become_user: gaiad
+  args:
+    creates: /home/gaiad/.gaiad/config/genesis.json
+
+- name: Create key password file
+  become: yes
+  copy:
+    content: "1234567890\n"
+    dest: /home/gaiad/pwd_val_key
+    mode: 0600
+    owner: gaiad
+    group: gaiad
+
+- name: Create validator key
+  shell: "/usr/bin/gaiacli keys add val_key < /home/gaiad/pwd_val_key"
+  become: yes
+  become_user: gaiad
+  args:
+    creates: /home/gaiad/.gaiacli/keys
 
 - name: Create initial transaction
-  command: "/usr/bin/gaiad init gen-tx --name=node{{nodeid.stdout_lines[0]}} --ip={{inventory_hostname}}"
-  register: gentxresult
+  shell: "/usr/bin/gaiad gentx --amount {{AMOUNT}} --name=val_key < /home/gaiad/pwd_val_key"
   become: yes
   become_user: gaiad
   args:
     creates: /home/gaiad/.gaiad/config/gentx
-
-- name: Get wallet word seed from result of initial transaction locally
-  when: gentxresult["changed"]
-  shell: "echo '{{gentxresult.stdout}}' | python -c 'import json,sys ; print json.loads(\"\".join(sys.stdin.readlines()))[\"app_message\"][\"secret\"]'"
-  changed_when: false
-  register: walletkey
-  connection: local
-
-- name: Write wallet word seed to local files
-  when: gentxresult["changed"]
-  copy: "content={{walletkey.stdout}} dest=keys/node{{nodeid.stdout_lines[0]}}"
-  become: no
-  connection: local
 
 - name: Find gentx file
   command: "ls /home/gaiad/.gaiad/config/gentx"
@@ -53,6 +68,7 @@
 - name: Clear local gen-tx list
   file: path=files/ state=absent
   connection: local
+  become: no
   run_once: yes
 
 - name: Get gen-tx file
@@ -61,18 +77,9 @@
     src: "/home/gaiad/.gaiad/config/gentx/{{gentxfile.stdout_lines[0]}}"
     flat: yes
 
-- name: Compress gathered gen-tx files locally
-  archive: path=files/ exclude_path=files/gen-tx.tgz dest=files/gen-tx.tgz
+- name: Get genesis.json file
+  fetch:
+    dest: files/
+    src: "/home/gaiad/.gaiad/config/genesis.json"
+    flat: yes
   run_once: yes
-  connection: local
-
-- name: Unpack gen-tx archive
-  unarchive: src=files/gen-tx.tgz dest=/home/gaiad/.gaiad/config/gentx owner=gaiad
-
-- name: Generate genesis.json
-  command: "/usr/bin/gaiad init --with-txs --name=node{{nodeid.stdout_lines[0]}} --chain-id={{TESTNET_NAME}}"
-  become: yes
-  become_user: gaiad
-  args:
-    creates: /home/gaiad/.gaiad/config/genesis.json
-

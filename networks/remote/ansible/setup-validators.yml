@@ -1,4 +1,5 @@
 ---
+# BINARY, GAIACLI_BINARY, AMOUNT variables are required to run this playbook
 
 - hosts: all
   any_errors_fatal: true
